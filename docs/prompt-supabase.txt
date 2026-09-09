@@ -1,0 +1,139 @@
+﻿Quero configurar o banco da PARADIGMA, uma loja de roupas com painel administrativo. O frontend já foi implementado e depende exatamente das migrations SQL fornecidas abaixo.
+
+Use estas migrations como fonte de verdade. Não gere outro modelo, não renomeie tabelas, colunas, funções, políticas ou bucket, e não simplifique as regras de segurança.
+
+Antes de aplicar, inspecione o projeto para verificar se estas migrations já foram aplicadas, se existem objetos conflitantes e se há políticas anteriores que ampliem acesso, especialmente em storage.objects. Se houver conflito ou aplicação parcial, explique o problema e proponha uma migration adicional sem apagar dados nem alterar silenciosamente objetos existentes. Não reaplique migrations já executadas. Se não conseguir inspecionar ou executar, diga isso claramente e forneça o SQL para execução manual, sem afirmar que foi aplicado.
+
+Para um projeto vazio, aplique primeiro a migration de catálogo e depois a de Storage, preservando as transações. Registre quais migrations foram aplicadas. Não crie produtos, fotos, categorias, usuários ou métricas fictícias.
+
+Requisitos obrigatórios:
+- Manter as seis tabelas públicas: categories, sizes, colors, products, product_variants e product_images, com os campos, constraints, índices e triggers exatos do SQL.
+- Dinheiro em centavos inteiros e estoque inteiro por variação.
+- RLS e grants conforme o SQL: visitantes e usuários comuns leem apenas produtos active e seus atributos/imagens associados; somente administradores podem editar o catálogo e acessar rascunhos.
+- Administradores são identificados por private.admin_memberships e public.is_admin(), nunca por user_metadata. Não expor o schema private na Data API. Nenhum usuário do aplicativo pode conceder esse papel, inclusive administradores.
+- Bucket catalog privado, limite de 5 MiB, somente JPEG/PNG/WebP. Preservar as políticas de leitura, inserção e exclusão. Não criar política de UPDATE, bucket público, getPublicUrl ou links assinados duradouros.
+- Não criar promoções, pedidos, carrinho, checkout, pagamentos ou persistência do tema nesta etapa.
+- Não solicitar nem inserir senhas, service_role ou chaves secretas no frontend, SQL versionado ou resposta.
+
+Após a aplicação, confira objetos, constraints, triggers, grants, RLS e políticas, inclusive políticas preexistentes no Storage. Relate exatamente o que foi executado e verificado. Não diga que Auth e Storage foram testados de ponta a ponta se só inspecionou SQL.
+
+Explique os passos manuais restantes para ativar login por email/senha, desativar cadastro público e criar a primeira conta administrativa real pelo Auth. Não insira usuários diretamente em auth.users. Depois que essa conta existir, forneça separadamente este comando para o operador executar, substituindo o UUID:
+
+insert into private.admin_memberships (user_id)
+values ('UUID_DA_CONTA_CONFIRMADA'::uuid)
+on conflict (user_id) do nothing;
+
+Ao final, indique onde obter a Project URL e a chave publishable para configurar VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY nas duas aplicações. Não exiba segredos. A validação com contas e dados descartáveis deve acontecer somente em staging dedicado.
+
+MIGRATION 1 — 202609060001_catalog.sql
+
+begin;
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+create table private.admin_memberships (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table private.admin_memberships enable row level security;
+revoke all on private.admin_memberships from public, anon, authenticated;
+-- No arguments or editable metadata: only the authenticated caller's UUID.
+create function public.is_admin() returns boolean
+language sql stable security definer set search_path = ''
+as $$ select exists(select 1 from private.admin_memberships where user_id = (select auth.uid())); $$;
+revoke all on function public.is_admin() from public;
+grant execute on function public.is_admin() to anon, authenticated;
+create table public.categories (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique check (length(trim(name)) between 1 and 100)
+);
+create table public.sizes (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique check (length(trim(name)) between 1 and 40)
+);
+create table public.colors (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique check (length(trim(name)) between 1 and 60),
+  hex text not null check (hex ~ '^#[0-9a-fA-F]{6}$')
+);
+create table public.products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (length(trim(name)) between 1 and 160),
+  description text not null default '' check (length(description) <= 10000),
+  price_cents integer not null check (price_cents between 1 and 100000000),
+  category_id uuid references public.categories(id) on delete restrict,
+  status text not null default 'draft' check (status in ('draft', 'active', 'archived')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create table public.product_variants (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  size_id uuid not null references public.sizes(id) on delete restrict,
+  color_id uuid not null references public.colors(id) on delete restrict,
+  sku text not null unique check (length(trim(sku)) between 1 and 80),
+  stock integer not null default 0 check (stock between 0 and 1000000),
+  updated_at timestamptz not null default now(),
+  unique (product_id, size_id, color_id)
+);
+create table public.product_images (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  path text not null unique,
+  alt text not null default '' check (length(alt) <= 300),
+  position integer not null default 0 check (position between 0 and 10000),
+  check (path ~ ('^' || product_id::text || '/[0-9a-f-]{36}\.(jpg|png|webp)$'))
+);
+create index products_public_idx on public.products (status, created_at desc);
+create index products_category_idx on public.products (category_id);
+create index variants_product_idx on public.product_variants (product_id);
+create index variants_size_idx on public.product_variants (size_id);
+create index variants_color_idx on public.product_variants (color_id);
+create index images_product_idx on public.product_images (product_id, position);
+create function private.touch_updated_at() returns trigger
+language plpgsql set search_path = '' as $$ begin new.updated_at = clock_timestamp(); return new; end; $$;
+create trigger products_updated before update on public.products for each row execute function private.touch_updated_at();
+create trigger variants_updated before update on public.product_variants for each row execute function private.touch_updated_at();
+alter table public.products enable row level security;
+alter table public.categories enable row level security;
+alter table public.sizes enable row level security;
+alter table public.colors enable row level security;
+alter table public.product_variants enable row level security;
+alter table public.product_images enable row level security;
+revoke all on public.products, public.categories, public.sizes, public.colors, public.product_variants, public.product_images from public, anon, authenticated;
+grant select on public.products, public.categories, public.sizes, public.colors, public.product_variants, public.product_images to anon, authenticated;
+grant insert, update, delete on public.products, public.categories, public.sizes, public.colors, public.product_variants, public.product_images to authenticated;
+create policy products_public_read on public.products for select to anon, authenticated using (status = 'active');
+create policy categories_public_read on public.categories for select to anon, authenticated using (exists (select 1 from public.products p where p.category_id = categories.id and p.status = 'active'));
+create policy variants_public_read on public.product_variants for select to anon, authenticated using (exists (select 1 from public.products p where p.id = product_variants.product_id and p.status = 'active'));
+create policy images_public_read on public.product_images for select to anon, authenticated using (exists (select 1 from public.products p where p.id = product_images.product_id and p.status = 'active'));
+create policy sizes_public_read on public.sizes for select to anon, authenticated using (exists (select 1 from public.product_variants v join public.products p on p.id = v.product_id where v.size_id = sizes.id and p.status = 'active'));
+create policy colors_public_read on public.colors for select to anon, authenticated using (exists (select 1 from public.product_variants v join public.products p on p.id = v.product_id where v.color_id = colors.id and p.status = 'active'));
+create policy products_admin on public.products for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
+create policy categories_admin on public.categories for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
+create policy sizes_admin on public.sizes for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
+create policy colors_admin on public.colors for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
+create policy variants_admin on public.product_variants for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
+create policy images_admin on public.product_images for all to authenticated using ((select public.is_admin())) with check ((select public.is_admin()));
+commit;
+
+
+MIGRATION 2 — 202609060002_storage.sql
+
+begin;
+-- Private bucket: getPublicUrl must never be used for catalog photos.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('catalog', 'catalog', false, 5242880, array['image/jpeg','image/png','image/webp']);
+create policy catalog_read on storage.objects for select to anon, authenticated
+using (bucket_id = 'catalog' and ((select public.is_admin()) or exists (
+  select 1 from public.product_images i join public.products p on p.id = i.product_id
+  where i.path = storage.objects.name and p.status = 'active'
+)));
+create policy catalog_insert on storage.objects for insert to authenticated
+with check (bucket_id = 'catalog' and (select public.is_admin()) and exists (
+  select 1 from public.product_images i where i.path = storage.objects.name
+));
+create policy catalog_delete on storage.objects for delete to authenticated
+using (bucket_id = 'catalog' and (select public.is_admin()));
+-- No UPDATE policy: immutable UUID object names, no overwrites/upserts.
+commit;
+
