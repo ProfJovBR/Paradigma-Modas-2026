@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { LogIn, LogOut, RefreshCw } from 'lucide-react';
 import { Brand, Button } from '@paradigma/ui';
 import type { Session } from '@paradigma/core';
@@ -11,25 +11,34 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [initialized, setInitialized] = useState(false);
   const [role, setRole] = useState<'checking' | 'admin' | 'denied' | 'error'>('checking');
   const [retry, setRetry] = useState(0);
+  const sessionUser = useRef<string | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
     if (!supabase) return;
     let active = true; let version = 0;
+    const receiveSession = (next: Session | null) => {
+      if (sessionUser.current !== (next?.user.id ?? null)) setRole('checking');
+      sessionUser.current = next?.user.id ?? null;
+      setSession(next); setInitialized(true);
+    };
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
-      version++; if (active) { setSession(next); setInitialized(true); setRole('checking'); }
+      version++; if (active) receiveSession(next);
     });
     const initialVersion = version;
     void supabase.auth.getSession().then(({ data, error }) => {
       if (!active || version !== initialVersion) return;
-      setSession(data.session); setInitialized(true);
+      receiveSession(data.session);
       if (error) setError('Não foi possível recuperar a sessão. Entre novamente.');
     }).catch(() => { if (active) { setInitialized(true); setError('Não foi possível recuperar a sessão.'); } });
     return () => { active = false; data.subscription.unsubscribe(); };
   }, []);
   useEffect(() => {
     if (!session || !supabase) return;
-    let active = true; setRole('checking');
-    void supabase.rpc('is_admin').then(({ data, error }) => { if (active) setRole(error ? 'error' : data === true ? 'admin' : 'denied'); });
+    // Keep the current user's screen mounted while revalidating. RLS guards every operation.
+    let active = true;
+    void supabase.rpc('is_admin').then(({ data, error }) => {
+      if (active) setRole(error ? 'error' : data === true ? 'admin' : 'denied');
+    }, () => { if (active) setRole('error'); });
     return () => { active = false; };
   }, [session, retry]);
   // Revalidate membership when returning to the tab; RLS always enforces revocation immediately.

@@ -52,3 +52,11 @@ O teste remoto verifica Auth, membership, cadastro/variante/foto, rascunho ocult
 6. Sair e tentar entrar com usuario comum: painel negado. No staging, executar teste remoto para verificar as mesmas restricoes fora da UI.
 
 Esse aceite permanece pendente de configuracao externa. Nao confundir um build aprovado com validacao de RLS no seu projeto, que pode conter politicas anteriores permissivas.
+
+## Opcoes padrao de tamanhos e cores
+
+O painel oferece 20 tamanhos e 18 cores em Categorias e variacoes. Em cada aba, "Cadastrar opcoes padrao" grava as opcoes ausentes pelo cliente autenticado e pelas politicas RLS existentes. Nao ha migration ou cadastro automatico ao abrir a tela. Os valores ficam em apps/admin/src/attribute-presets.ts; nomes e cores cadastrados continuam editaveis.
+
+Antes de gravar, o painel consulta os registros atuais e compara nomes sem distinguir maiusculas/minusculas e espacos nas extremidades. A insercao em lote ignora conflitos exatos de nome sem sobrescrever registros existentes. A confirmacao depende de nova leitura do banco. Duas criacoes simultaneas com diferencas de caixa ainda seguem a unicidade exata do schema existente.
+
+O teste tests/presets.spec.ts usa somente fixtures HTTP em memoria: cadastro, retorno a aba, preservacao de nome/cor existentes, falha de gravacao sem sucesso falso e layout de 320px. O cadastro no Supabase real ocorre quando a administradora aciona o botao.

@@ -40,3 +40,11 @@ Restaurar padrao altera somente os seletores e a previa; para aplicar a loja, pu
 Estes testes nao comprovam Auth/RLS/Storage do Supabase hospedado. Aplicacao remota e aceite manual do tema ainda pendentes: salvar um rascunho, reabrir o painel, verificar isolamento na loja anonima, publicar e conferir a mudanca. Nao executar fixtures em producao.
 
 Resultado local em 09/09/2026: teste SQL/PGlite aprovado, seis testes Playwright aprovados (incluindo catalogo/tema em 1440/390/320px), build aprovado para loja e painel. Capturas de Aparencia em desktop e 320px revisadas.
+
+## Atualizacao ao retomar a janela
+
+Ao retornar por Alt+Tab, o painel revalida a permissao sem desmontar a tela do mesmo usuario, preservando edicoes locais. Uma troca de usuario exige nova verificacao inicial; sessao encerrada, permissao negada ou falha na verificacao bloqueiam o painel. RLS continua protegendo cada operacao no servidor.
+
+Catalogo e detalhe do produto atualizam em segundo plano ao recuperar foco e no intervalo existente. O carregamento completo permanece na primeira consulta, na troca de busca/filtros/pagina/produto e na recuperacao apos erro. Respostas novas continuam atualizando preco, estoque e disponibilidade; erros continuam exibidos explicitamente.
+
+`tests/revalidation.spec.ts` usa HTTP interceptado e respostas atrasadas para verificar preservacao de campos nao salvos, permanencia dos elementos da loja durante a consulta, selecao de variante, atualizacao de preco, produto arquivado e revogacao administrativa. Nao acessa Supabase hospedado.

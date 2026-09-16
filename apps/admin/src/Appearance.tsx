@@ -66,17 +66,19 @@ export function Appearance() {
     {busy && <p role="status">Carregando ou salvando tema…</p>}
     {error && <div role="alert" className="feedback error">{error}</div>}
     {notice && <p role="status" className="feedback">{notice}</p>}
+    <div className="tabs appearance-tabs"><button aria-pressed="true">Cores</button><span>Identidade visual da loja</span></div>
     <div className="appearance-grid">
-      <section className="color-settings"><h2>Cores da marca</h2>
+      <section className="color-settings panel"><h2>Cores da marca</h2><p className="muted">Defina as cores que representam a identidade da sua loja. As alterações aparecem na prévia ao lado.</p>
         <fieldset disabled={busy || !saved}>
           {(Object.keys(defaultTheme) as (keyof Theme)[]).map(key => <label className="color-row" key={key}><input type="color" aria-label={themeLabels[key]} value={theme[key]} onChange={e => { setTheme({ ...theme, [key]: e.target.value }); setNotice(''); }} /><span>{themeLabels[key]}<small>{theme[key].toUpperCase()}</small></span></label>)}
+          <h2 className="palette-title">Paletas prontas</h2><p className="muted">Use uma paleta como ponto de partida.</p><div className="palette-options">{[{ name: 'Paradigma', theme: defaultTheme }, { name: 'Minimal', theme: { primary: '#e8e5df', background: '#ffffff', surface: '#f3f3f3', text: '#191919' } }, { name: 'Elegante', theme: { primary: '#722f37', background: '#fffdf8', surface: '#f4ecdf', text: '#191919' } }, { name: 'Moderna', theme: { primary: '#325b4c', background: '#ffffff', surface: '#edf2ee', text: '#191919' } }, { name: 'Oceano', theme: { primary: '#244b70', background: '#ffffff', surface: '#eef2f6', text: '#191919' } }].map(palette => <button type="button" key={palette.name} onClick={() => { setTheme({ ...palette.theme }); setNotice(''); }} aria-label={`Paleta ${palette.name}`}>{[palette.theme.primary, palette.theme.surface, palette.theme.text].map((color, index) => <span key={index} style={{ background: color }} />)}<small>{palette.name}</small></button>)}</div>
           <Button className="secondary" onClick={() => { setTheme({ ...defaultTheme }); setNotice(''); }}><RotateCcw size={16} />Restaurar padrão</Button>
         </fieldset>
         <Button className="secondary theme-reload" disabled={busy} onClick={() => {
           if (!dirty || window.confirm('Descartar as alterações locais e carregar o tema salvo?')) setReload(value => value + 1);
         }}>Recarregar tema salvo</Button>
       </section>
-      <section className="preview-section"><div className="subheading"><h2><Eye size={18} />Prévia da loja</h2><div className="segmented"><button aria-label="Prévia desktop" aria-pressed={device === 'desktop'} onClick={() => setDevice('desktop')}><Monitor size={18} /></button><button aria-label="Prévia celular" aria-pressed={device === 'mobile'} onClick={() => setDevice('mobile')}><Smartphone size={18} /></button></div></div><div className={`preview-frame ${device}`} style={themeStyle(theme)}><StorePreview /></div></section>
+      <section className="preview-section panel"><div className="subheading"><h2><Eye size={18} />Prévia da loja</h2><div className="segmented"><button aria-label="Prévia desktop" aria-pressed={device === 'desktop'} onClick={() => setDevice('desktop')}><Monitor size={18} /></button><button aria-label="Prévia celular" aria-pressed={device === 'mobile'} onClick={() => setDevice('mobile')}><Smartphone size={18} /></button></div></div><div className={`preview-frame ${device}`} style={themeStyle(theme)}><StorePreview /></div></section>
     </div>
     {saved && validation && <p className="feedback error" role="alert">{validation} Você pode salvar como rascunho.</p>}
     <div className="form-actions"><span>{dirty ? 'Alterações ainda não salvas. ' : ''}A prévia só altera a loja ao publicar.</span><div className="action-row"><Button className="secondary" disabled={busy || !saved || !isTheme(theme)} onClick={() => void save(false)}><Save size={16} />Salvar rascunho</Button><Button disabled={busy || !saved || !!validation} onClick={() => void save(true)}>Publicar tema</Button></div></div>
