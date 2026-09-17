@@ -2,9 +2,10 @@ import type { BrowserContext } from '@playwright/test';
 
 // In-memory HTTP fixtures only. These do not prove hosted Supabase permissions.
 export async function mockSupabase(context: BrowserContext) {
-  const tables: Record<string, Record<string, any>[]> = { products: [], categories: [], sizes: [], colors: [], product_variants: [], product_images: [] };
+  const tables: Record<string, Record<string, any>[]> = { products: [], categories: [], sizes: [], colors: [], product_variants: [], product_images: [], site_banners: ['hero', 'cta'].map(slot => ({ slot, path: null, alt: '', revision: crypto.randomUUID() })) };
   const files = new Map<string, Buffer>();
-  const state = { failReads: false, denyLogin: false, email: '', failTheme: false, failThemeLoad: false };
+  const state = { failReads: false, denyLogin: false, email: '', failTheme: false, failThemeLoad: false, failBannerUpload: false, failBannerSave: false, failBannerLoad: false, failBannerCleanup: false, failBannerDownload: false, loseBannerResponse: false };
+  const bannerAssets = new Map<string, { slot: string; state: string }>();
   let theme = { draft: null as Record<string, string> | null, published: null as Record<string, string> | null, revision: crypto.randomUUID() };
   await context.route('https://supabase.test/**', async route => {
     const request = route.request(), url = new URL(request.url()), method = request.method();
@@ -27,8 +28,39 @@ export async function mockSupabase(context: BrowserContext) {
       return json(theme);
     }
     if (url.pathname.endsWith('/theme_settings')) return json([{ published: theme.published }]);
+    if (url.pathname.endsWith('/site_banners') && state.failBannerLoad) return json({ code: 'PGRST205' }, 404);
+    if (url.pathname.endsWith('/rpc/prepare_banner_upload')) {
+      const body = request.postDataJSON();
+      const path = `${body.p_slot}/${crypto.randomUUID()}.${body.p_extension}`;
+      bannerAssets.set(path, { slot: body.p_slot, state: 'pending' });
+      return json(path);
+    }
+    if (url.pathname.endsWith('/rpc/publish_banner')) {
+      if (state.failBannerSave) return json({ message: 'offline' }, 503);
+      const body = request.postDataJSON();
+      const banner = tables.site_banners.find(b => b.slot === body.p_slot)!;
+      if (body.p_revision !== banner.revision) return json({ code: '40001' }, 409);
+      if (body.p_path && !files.has(body.p_path)) return json({ code: '22023' }, 400);
+      if (banner.path && banner.path !== body.p_path) bannerAssets.get(banner.path)!.state = 'retired';
+      if (body.p_path) bannerAssets.get(body.p_path)!.state = 'active';
+      Object.assign(banner, { path: body.p_path, alt: body.p_alt, revision: crypto.randomUUID() });
+      if (state.loseBannerResponse) { state.loseBannerResponse = false; return json({ message: 'lost response' }, 503); }
+      return json(banner);
+    }
+    if (url.pathname.endsWith('/rpc/discard_banner_upload')) {
+      const asset = bannerAssets.get(request.postDataJSON().p_path);
+      if (asset?.state === 'pending') asset.state = 'retired';
+      return json(null);
+    }
+    if (url.pathname.endsWith('/rpc/claim_banner_cleanup')) {
+      if (state.failBannerCleanup) return json({ message: 'offline' }, 503);
+      return json([...bannerAssets.entries()].filter(([path, asset]) => asset.state === 'retired' && files.has(path)).map(([path]) => path));
+    }
+
     if (url.pathname.includes('/storage/v1/object/')) {
-      const path = decodeURIComponent(url.pathname.split('/catalog/')[1] ?? '');
+      const bannerStorage = url.pathname.includes('/banners');
+      const path = decodeURIComponent(url.pathname.split(bannerStorage ? '/banners/' : '/catalog/')[1] ?? '');
+      if (bannerStorage && ((method === 'POST' && state.failBannerUpload) || (method === 'GET' && state.failBannerDownload) || (method === 'DELETE' && state.failBannerCleanup))) return json({ message: 'offline' }, 503);
       if (method === 'POST') {
         let bytes = request.postDataBuffer()!;
         if (request.headers()['content-type']?.startsWith('multipart/form-data')) {
@@ -36,7 +68,7 @@ export async function mockSupabase(context: BrowserContext) {
           const file = [...form.values()].find(value => typeof value !== 'string') as File;
           bytes = Buffer.from(await file.arrayBuffer());
         }
-        files.set(path,bytes); return json({ Key:`catalog/${path}`, Id:crypto.randomUUID() });
+        files.set(path,bytes); return json({ Key:`${bannerStorage ? 'banners' : 'catalog'}/${path}`, Id:crypto.randomUUID() });
       }
       if (method === 'DELETE') { const body = request.postDataJSON(); for (const p of body.prefixes ?? []) files.delete(p); return json([]); }
       const file = files.get(path); return file ? route.fulfill({status:200,contentType:'image/png',body:file}) : json({message:'not found'},404);
@@ -71,5 +103,5 @@ export async function mockSupabase(context: BrowserContext) {
     const single = request.headers().accept?.includes('application/vnd.pgrst.object+json');
     return json(single ? selected[0] : selected,200,{'content-range':`0-${Math.max(0,count-1)}/${count}`});
   });
-  return { tables, state, files };
+  return { tables, state, files, bannerAssets };
 }

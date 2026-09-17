@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
+import { testBanners } from './banners.mjs';
 
 test('migrations and catalog permissions in isolated PostgreSQL (not hosted Supabase)', async () => {
   const db = new PGlite();
@@ -14,11 +15,11 @@ test('migrations and catalog permissions in isolated PostgreSQL (not hosted Supa
       grant execute on function auth.uid() to anon, authenticated;
       create schema storage;
       create table storage.buckets(id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
-      create table storage.objects(id uuid primary key default gen_random_uuid(), bucket_id text, name text);
+      create table storage.objects(id uuid primary key default gen_random_uuid(), bucket_id text, name text, metadata jsonb);
       alter table storage.objects enable row level security;
       grant usage on schema storage to anon, authenticated;
       grant select, insert, update, delete on storage.objects to anon, authenticated;`);
-    for (const name of ['202609060001_catalog.sql', '202609060002_storage.sql', '202609090001_theme.sql']) await db.exec(await readFile(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8'));
+    for (const name of ['202609060001_catalog.sql', '202609060002_storage.sql', '202609090001_theme.sql', '202609160001_banners.sql']) await db.exec(await readFile(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8'));
     const bucket = (await db.query("select * from storage.buckets where id='catalog'")).rows[0];
     assert.equal(bucket.public,false);
     assert.equal(Number(bucket.file_size_limit),5242880);
@@ -137,9 +138,13 @@ test('migrations and catalog permissions in isolated PostgreSQL (not hosted Supa
     assert.deepEqual(editor.published,nextTheme);
     assert.equal((await db.query('select * from public.theme_versions')).rows.length,2);
     await db.exec('reset role');
+    await testBanners({ db, role, denied, admin, ordinary });
+    await db.exec('reset role');
     await db.query('delete from private.admin_memberships where user_id=$1',[admin]);
     await role('authenticated',admin);
     assert.equal((await db.query('select public.is_admin() as ok')).rows[0].ok,false);
+    await denied("select public.prepare_banner_upload('hero','png')");
+    await denied('select public.claim_banner_cleanup()');
     await denied("insert into public.products(name,price_cents) values ('revoked',100)");
     await denied('select public.save_theme($1::jsonb,$2::uuid,true)',[JSON.stringify(theme),editor.revision]);
   } finally { await db.close(); }

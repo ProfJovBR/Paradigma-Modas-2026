@@ -1,5 +1,9 @@
 # Arquitetura e decisoes
 
+## Banners da pagina inicial (Etapa 04)
+
+Hero e CTA preservam seus containers e usam uma unica imagem responsiva por banner. `site_banners` guarda somente a referencia publicada, alt e revisao. `banner_assets` rastreia uploads pending/active/retired; bucket `banners` privado, 5 MB, JPEG/PNG/WebP. Escritas usam RPCs com `public.is_admin()`, revisao e bloqueio de linha; a troca de referencia e atomica, sem apagar o arquivo ativo antes da publicacao. A limpeza usa a Storage API, com tentativas ao abrir a pagina/salvar e recuperacao de uploads abandonados apos 24 horas. A loja baixa imagens com RLS e blob URLs, revalidando ao navegar, retomar foco e a cada 60 segundos visiveis. Fallback preserva as imagens atuais por solicitacao explicita. Configuracao e limites em [etapa-04-banners.md](etapa-04-banners.md).
+
 ## Aplicacoes
 
 apps/loja e apps/admin sao entradas e builds independentes. npm workspaces evita duplicacao de componentes. packages/ui exporta componentes, estilos Tailwind e tokens; packages/core concentra contratos, validacao de imagens e fabrica do cliente Supabase. As duas aplicacoes usam a mesma URL/chave publica e configuracoes de sessao diferentes.

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+export * from './banners';
 export type { SupabaseClient, Session } from '@supabase/supabase-js';
 export type Attribute = { id: string; name: string; hex?: string };
 export type Variant = { id: string; product_id: string; size_id: string; color_id: string; sku: string; stock: number; updated_at: string };

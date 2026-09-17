@@ -9,9 +9,9 @@ export function ReferencePhoto({ crop, source = 'home', className = '', align = 
   const [x, y, width, height] = crop;
   return <div className={`reference-photo ${className}`} aria-hidden="true"><svg viewBox={`${x} ${y} ${width} ${height}`} preserveAspectRatio={`${align} slice`} width="100%" height="100%"><image href={source === 'home' ? homeReference : source === 'catalog' ? catalogReference : adminReference} width="1055" height="1491" /></svg></div>;
 }
-export function CampaignHero({ compact = false, admin = false }: { compact?: boolean; admin?: boolean }) {
+export function CampaignHero({ compact = false, admin = false, image }: { compact?: boolean; admin?: boolean; image?: ReactNode }) {
   return <section className={`campaign-hero ${compact ? 'compact' : ''} ${admin ? 'admin-campaign' : ''}`}>
-    <ReferencePhoto source={admin ? 'admin' : compact ? 'catalog' : 'home'} crop={admin ? [527, 102, 503, 242] : compact ? [529, 94, 524, 229] : [475, 94, 578, 386]} />
+    {image ?? <ReferencePhoto source={admin ? 'admin' : compact ? 'catalog' : 'home'} crop={admin ? [527, 102, 503, 242] : compact ? [529, 94, 524, 229] : [475, 94, 578, 386]} />}
     <div className="campaign-copy"><span className="eyebrow">{admin ? 'BEM-VINDO(A) AO SEU PAINEL' : compact ? 'NOVIDADES' : 'NOVOS COMEÇOS'}</span><h1>{admin ? <>Grandes marcas<br />começam com<br />grandes decisões.</> : compact ? <>O novo combina<br />com você.</> : <>Estilo hoje.<br />Um amanhã melhor.</>}</h1><p>{admin ? 'GERENCIE, ANALISE E FAÇA SUA LOJA IR AINDA MAIS LONGE.' : 'MODA QUE TE ACOMPANHA EM TODAS AS SUAS VERSÕES.'}</p>{!admin && <a className="button" href="#catalogo">EXPLORAR COLEÇÃO <ArrowRight size={17} /></a>}{!compact && !admin && <div className="hero-values"><span><Leaf />MODA COM<br />PROPÓSITO</span><span><Diamond />SUA<br />IDENTIDADE</span><span><Users />NOVAS<br />HISTÓRIAS</span></div>}</div>
   </section>;
 }
@@ -23,8 +23,8 @@ export function CategoryTiles() {
     { name: 'Novidades', crop: [787, 530, 236, 159] as [number, number, number, number] },
   ].map(item => <a key={item.name} href={`#catalogo?colecao=${encodeURIComponent(item.name)}`} aria-label={`Explorar ${item.name}`}><ReferencePhoto crop={item.crop} /><span className="sr-only">{item.name}</span></a>)}</div></section>;
 }
-export function CampaignBanner() {
-  return <section className="campaign-banner"><ReferencePhoto crop={[535, 995, 485, 164]} align="xMinYMid" /><div><span className="eyebrow">SEU PRÓXIMO LOOK</span><h2>Mais que moda.<br />Novas possibilidades.</h2><a className="button dark" href="#catalogo">EXPLORAR PEÇAS <ArrowRight size={15} /></a></div></section>;
+export function CampaignBanner({ image }: { image?: ReactNode }) {
+  return <section className="campaign-banner">{image ?? <ReferencePhoto crop={[535, 995, 485, 164]} align="xMinYMid" />}<div><span className="eyebrow">SEU PRÓXIMO LOOK</span><h2>Mais que moda.<br />Novas possibilidades.</h2><a className="button dark" href="#catalogo">EXPLORAR PEÇAS <ArrowRight size={15} /></a></div></section>;
 }
 export function Benefits() {
   return <div className="benefits">{[{ icon: Truck, title: 'ENTREGA', text: 'Consulte as condições' }, { icon: CreditCard, title: 'PAGAMENTO', text: 'Opções no fechamento' }, { icon: Package, title: 'TROCAS', text: 'Consulte nossa política' }, { icon: ShieldCheck, title: 'ATENDIMENTO', text: 'Conte com a Paradigma' }, { icon: Leaf, title: 'MODA COM PROPÓSITO', text: 'Seu jeito de se vestir' }].map(item => <div key={item.title}><item.icon size={27} strokeWidth={1.5} /><span><strong>{item.title}</strong><small>{item.text}</small></span></div>)}</div>;

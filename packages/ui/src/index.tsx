@@ -4,6 +4,8 @@ import { CampaignHero, CategoryTiles, CampaignBanner } from './Commerce';
 export * from './Commerce';
 export { CatalogImage } from './CatalogImage';
 export { usePublishedTheme } from './usePublishedTheme';
+export { BannerImage } from './BannerImage';
+export { usePublishedBanners } from './usePublishedBanners';
 
 export function Brand({ small = false }: { small?: boolean }) { return <span className={`brand ${small ? 'brand-small' : ''}`}>Paradigma</span>; }
 export function Button({ children, className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement>) { return <button className={`button ${className}`} {...props}>{children}</button>; }

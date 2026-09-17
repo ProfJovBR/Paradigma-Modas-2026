@@ -7,7 +7,8 @@ Crie ou escolha um projeto Supabase vazio para a PARADIGMA. Loja e painel devem 
 No Dashboard, abra SQL Editor e execute, em ordem, o conteudo completo de:
 - supabase/migrations/202609060001_catalog.sql
 - supabase/migrations/202609060002_storage.sql
-- supabase/migrations/202609090001_theme.sql (personalizacao de cores; aplicar somente esta se as anteriores ja estiverem instaladas)
+- supabase/migrations/202609090001_theme.sql (personalizacao de cores)
+- supabase/migrations/202609160001_banners.sql (banners; depende das anteriores)
 
 Cada migration e transacional; execute apenas uma vez por projeto e mantenha o registro de quais arquivos foram aplicados. Nao ha dados de exemplo. Em projeto existente, revise conflitos de nomes e politicas antes de aplicar: politicas permissivas anteriores de storage.objects podem ampliar acesso. As migrations nao apagam tabelas/buckets existentes nem substituem politicas externas.
 
@@ -68,19 +69,8 @@ Execute o roteiro de docs/etapa-02.md em staging para verificar Auth/Storage rea
 
 Fontes oficiais: https://supabase.com/docs/guides/getting-started/api-keys, https://supabase.com/docs/guides/database/postgres/row-level-security, https://supabase.com/docs/reference/javascript/auth-onauthstatechange e https://supabase.com/docs/guides/storage/serving/downloads.
 
-## Cloudflare Pages (nao executar nesta etapa)
+## Cloudflare Pages
 
-Sera necessario acesso a conta Cloudflare e ao repositorio Git, e eventualmente DNS dos dominios. Via CI/CLI, usar token restrito a Pages e Account ID em secrets da plataforma.
-
-Criar futuramente dois projetos Pages no mesmo repositorio, ambos com raiz de build na raiz do monorepo:
-
-| Projeto | Comando | Diretorio de saida |
-| --- | --- | --- |
-| Loja | npm run build:loja | apps/loja/dist |
-| Admin | npm run build:admin | apps/admin/dist |
-
-Fixar Node 24 no ambiente de build e configurar as variaveis publicas por projeto. Mudancas em packages/ e no lockfile devem disparar ambos os builds; mudancas especificas de app podem usar watch paths. Painel por hash nao precisa de rewrite de rotas. Integrar autenticacao e permissoes antes de disponibilizar o painel.
-
-Fontes: https://developers.cloudflare.com/pages/configuration/monorepos/ e https://developers.cloudflare.com/pages/configuration/build-watch-paths/.
+Preparacao e roteiro completo em [cloudflare-pages.md](cloudflare-pages.md). Loja e painel usam dois projetos Pages no mesmo repositorio, com raiz na raiz do monorepo. A publicacao nao foi executada.
 
 Nao sao necessarias credenciais de pagamentos nesta etapa.
