@@ -18,7 +18,7 @@ Confira no Dashboard: seis tabelas de catalogo com RLS, funcao public.is_admin()
 
 ## 2. Primeira administradora
 
-1. Em Authentication > Sign In / Providers, habilite email/senha. Desative cadastro publico (Allow new users to sign up) se nao houver outro fluxo autorizado. Nao existe signup na aplicacao.
+1. Em Authentication > Sign In / Providers, habilite email/senha. Mantenha cadastro público habilitado para o fluxo de clientes (Etapa 06). Cadastro nunca concede membership administrativa.
 2. Em Authentication > Users > Add user > Create new user, crie a conta real com email correto e senha forte mantida no gerenciador de senhas da administradora. Confirme o email pelo fluxo do Dashboard quando necessario. Esta etapa usa login por senha; convites/links de recuperacao de senha nao estao implementados na UI.
 3. Copie o UUID dessa conta na lista de Users. No SQL Editor, como operador do projeto, execute o bloco abaixo substituindo somente o UUID. O UUID e identificador, nao senha:
 
@@ -59,7 +59,7 @@ npm run dev:admin
 
 Loja: http://127.0.0.1:5173. Painel: http://127.0.0.1:5174. Se ocupadas, use as portas informadas pelo Vite. O painel mostrara login quando configurado; apenas membros autorizados entram. A loja usa cliente anonimo independente, mesmo que exista sessao administrativa.
 
-Os fluxos atuais sao email/senha e restauracao da sessao, sem redirects por email. Configure Site URL e allowlist de redirects antes de introduzir recuperacao de senha/convites por link em etapa futura; SMTP transacional tambem sera necessario nesse caso.
+A loja oferece cadastro e login de clientes por e-mail/senha. Site URL deve ser https://paradigma-modas-2026.pages.dev/ para confirmação de e-mail; preservar confirmação habilitada. É necessário SMTP próprio para cadastros públicos em produção. Consulte etapa-06-contas.md. Recuperação de senha ainda não foi implementada.
 
 ## 4. Segredos e testes
 

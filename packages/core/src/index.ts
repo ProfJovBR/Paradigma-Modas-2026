@@ -8,15 +8,15 @@ export type Product = { id: string; name: string; description: string; price_cen
 export type Promotion = { id: string; name: string; mode: 'global' | 'individual'; globalPercent: number | null; items: { productId: string; percent: number | null }[] };
 export const productSelect = '*, product_variants(*), product_images(*)';
 export const money = (cents: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
-export function createSupabaseClient(url: string, publishableKey: string, admin = false) {
+export function createSupabaseClient(url: string, publishableKey: string, admin: boolean | 'customer' = false) {
   const parsed = new URL(url);
   if (!['http:', 'https:'].includes(parsed.protocol) || !publishableKey.startsWith('sb_publishable_')) throw new Error('Configure a URL do projeto e uma chave publishable do Supabase.');
   return createClient(url, publishableKey, {
-    auth: { persistSession: admin, autoRefreshToken: admin, detectSessionInUrl: false, storageKey: 'paradigma-admin-auth' },
+    auth: { persistSession: !!admin, autoRefreshToken: !!admin, detectSessionInUrl: admin === 'customer', storageKey: admin === 'customer' ? 'paradigma-customer-auth' : admin ? 'paradigma-admin-auth' : 'paradigma-public-auth' },
     global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
   });
 }
-export function configuredClient(admin = false) {
+export function configuredClient(admin: boolean | 'customer' = false) {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim();
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
   if (!url || !key) return { client: null, configurationError: 'Configure VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no arquivo .env.local desta aplicação.' };
