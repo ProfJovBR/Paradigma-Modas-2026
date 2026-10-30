@@ -38,3 +38,10 @@
 - Rascunho e publicacao usam RPCs get_theme_editor/save_theme e public.is_admin(). Nao liberar escrita direta nas tabelas de tema.
 - Loja consulta somente theme_settings.published. Publicacao exige contraste minimo de 4,5:1 no servidor e cria historico atomico em theme_versions.
 - Promocoes, pedidos, checkout e pagamentos continuam fora do escopo.
+
+## Etapa 05 (substitui as restrições anteriores sobre pedidos)
+- Checkout e pedidos internos foram autorizados e implementados; consultar docs/etapa-05-checkout.md.
+- Sem cobrança online/NF. Frete e pagamento combinados no atendimento.
+- Preços e disponibilidade validados por submit_order; intake não reserva estoque.
+- Confirmar baixa estoque transacionalmente; cancelar devolve uma vez; mudanças exigem revisão e papel admin.
+- Preservar idempotência, RLS e proteção dos dados pessoais. Nunca simular sucesso local.

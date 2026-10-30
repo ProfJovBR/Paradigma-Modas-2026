@@ -46,3 +46,5 @@ export async function validateImage(file: File) {
   if (!valid) throw new Error('A imagem deve ter até 8000 pixels por lado e 32 megapixels.');
   return extensions[file.type];
 }
+
+export * from "./orders";

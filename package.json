@@ -17,7 +17,7 @@
     "build:admin": "npm run typecheck && npm run build -w @paradigma/admin",
     "typecheck": "tsc --noEmit",
     "test:ui": "playwright test",
-    "test:db": "node --test tests/database/rls.test.mjs",
+    "test:db": "node --test tests/database/*.test.mjs",
     "test:supabase": "node --env-file=.env.test.local tests/integration/supabase.mjs"
   },
   "devDependencies": {

@@ -54,7 +54,7 @@ for (const width of [1440, 768, 390, 320]) {
     await page.reload();
     await expect(page.getByRole('spinbutton', { name: 'Quantidade', exact: true })).toHaveValue('2');
     await page.goto('http://127.0.0.1:5183/#checkout');
-    await expect(page.getByRole('button', { name: 'CONFIRMAR PEDIDO' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'CONFIRMAR PEDIDO' })).toBeEnabled();
     await expect(page.locator('.summary-product')).toContainText('Peça de teste 01');
     await capture('05-checkout');
     await page.goto('http://127.0.0.1:5184');
