@@ -40,3 +40,18 @@
 .order-line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border, #ddd); }
 .order-toolbar { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; align-items: end; }
 .order-toolbar label { flex: 1 1 180px; }
+
+/* Shared contact channels and administrative settings. */
+.contact-page { padding-top: 28px; padding-bottom: 48px; }
+.contact-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 20px; margin: 28px 0; }
+.contact-cards a, .contact-message p { overflow-wrap: anywhere; }
+.contact-fields { display: grid; gap: 12px; border: 0; padding: 0; min-width: 0; }
+.contact-fields input:not([type=checkbox]), .contact-fields textarea { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--border, #ccc); border-radius: 6px; background: var(--background, #fff); color: var(--text, #191919); font: inherit; }
+.contact-fields textarea { resize: vertical; }
+.contact-setting { display: grid; gap: 10px; padding: 20px 0; border-bottom: 1px solid #ddd; }
+.contact-setting > label:first-child { font-weight: 600; }
+.contact-toggle { display: flex; gap: 10px; align-items: center; }
+.contact-settings { margin-bottom: 24px; }
+.contact-settings > button { margin-top: 16px; }
+.contact-message { max-width: 780px; }
+.contact-fields .button { justify-self: start; }
