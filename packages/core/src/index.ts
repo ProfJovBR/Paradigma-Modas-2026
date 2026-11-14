@@ -48,3 +48,4 @@ export async function validateImage(file: File) {
 }
 
 export * from "./orders";
+export * from './contact';
