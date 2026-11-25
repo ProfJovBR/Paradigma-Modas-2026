@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Heart, RefreshCw, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Truck } from 'lucide-react';
 import { Button, CatalogImage, Drawer, EmptyState, Skeleton } from '@paradigma/ui';
 import { money, productSelect, type Product, type Attribute } from '@paradigma/core';
-import { supabase } from './supabase';
+import { useCustomer } from './CustomerAccount';
+import { supabase, customerAuth } from './supabase';
 import { Quantity, useBasket } from './Basket';
 
 function useRevalidation() {
@@ -57,11 +58,16 @@ export function Catalog({ featured = false, title = 'Nosso catálogo', initialQu
 }
 
 export function ProductPage({ id }: { id: string }) {
+  const { session } = useCustomer();
   const [product, setProduct] = useState<Product | null>(null); const [sizes, setSizes] = useState<Attribute[]>([]); const [colors, setColors] = useState<Attribute[]>([]);
   const [loading, setLoading] = useState(true); const [error, setError] = useState(false); const [variantId, setVariantId] = useState(''); const [imageId, setImageId] = useState(''); const [revision, refresh] = useRevalidation();
   const [colorId, setColorId] = useState(''); const [sizeId, setSizeId] = useState(''); const [quantity, setQuantity] = useState(1); const [notice, setNotice] = useState(''); const [tab, setTab] = useState('Descrição do produto');
   const { add, favorite, favorites } = useBasket();
   const loadedProduct = useRef<string | null>(null);
+  useEffect(() => {
+    if (!session || !product || product.id !== id || !customerAuth) return;
+    void customerAuth.rpc('record_product_view', { p_product_id: id }).then(() => {}, () => {});
+  }, [id, product?.id, session?.user.id]);
   useEffect(() => {
     let active = true; setLoading(loadedProduct.current !== id); setError(false);
     if (!supabase || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id)) { setProduct(null); setLoading(false); return; }

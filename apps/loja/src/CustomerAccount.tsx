@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { Session } from '@paradigma/core';
 import { UserRound, X } from 'lucide-react';
+import { CustomerOrders, RecentlyViewed } from './AccountHistory';
 import { customerAuth } from './supabase';
 
 type CustomerContext = { session: Session | null; loading: boolean; openAccount: () => void };
@@ -131,5 +132,5 @@ export function AccountPage() {
   if (loading) return <div className="shop-container" role="status">Carregando sua conta…</div>;
   if (!session) return <section className="shop-container customer-account"><h1>Minha conta</h1><p>Entre para acessar seus dados.</p><button className="button" onClick={openAccount}>Entrar ou criar conta</button></section>;
   const name = session.user.user_metadata?.full_name;
-  return <section className="shop-container customer-account"><div className="breadcrumb"><a href="#">Início</a><span>›</span>Minha conta</div><p className="eyebrow">SEU ESPAÇO</p><h1>Olá{typeof name === 'string' && name.trim() ? `, ${name}` : ''}!</h1><p className="muted">Que bom ter você na Paradigma.</p><div className="panel customer-details"><h2>Dados da conta</h2><dl>{typeof name === 'string' && name.trim() && <><dt>Nome</dt><dd>{name}</dd></>}<dt>E-mail</dt><dd>{session.user.email}</dd></dl><div className="customer-account-actions"><a className="button" href="#catalogo">Explorar coleção</a><a className="button secondary" href="#favoritos">Meus favoritos</a><button className="text-link" disabled={busy} onClick={() => void logout()}>{busy ? 'Saindo…' : 'Sair da conta'}</button></div>{error && <p role="alert">{error}</p>}</div></section>;
+  return <section className="shop-container customer-account"><div className="breadcrumb"><a href="#">Início</a><span>›</span>Minha conta</div><p className="eyebrow">SEU ESPAÇO</p><h1>Olá{typeof name === 'string' && name.trim() ? `, ${name}` : ''}!</h1><p className="muted">Que bom ter você na Paradigma.</p><div className="customer-account-grid"><section className="panel customer-details account-section"><span className="eyebrow">01 · SEU PERFIL</span><h2>Dados da conta</h2><dl>{typeof name === 'string' && name.trim() && <><dt>Nome</dt><dd>{name}</dd></>}<dt>E-mail</dt><dd>{session.user.email}</dd></dl><div className="customer-account-actions"><a className="button" href="#catalogo">Explorar coleção</a><a className="button secondary" href="#favoritos">Meus favoritos</a><button className="text-link" disabled={busy} onClick={() => void logout()}>{busy ? 'Saindo…' : 'Sair da conta'}</button></div>{error && <p role="alert">{error}</p>}</section><CustomerOrders key={`orders-${session.user.id}`} userId={session.user.id} /><RecentlyViewed key={`views-${session.user.id}`} userId={session.user.id} /></div></section>;
 }

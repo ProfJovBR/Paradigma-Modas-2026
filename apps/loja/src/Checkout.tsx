@@ -1,23 +1,29 @@
 import { useRef, useState } from 'react';
 import { Button } from '@paradigma/ui';
 import { money, orderError } from '@paradigma/core';
-import { supabase } from './supabase';
+import { useCustomer } from './CustomerAccount';
+import { supabase, customerAuth } from './supabase';
 
 type Item = { variantId: string; quantity: number };
 type Props = { items: Item[]; total: number; ready: boolean; onSuccess: () => void; refresh: () => void };
 const pendingKey = 'paradigma-checkout-attempt';
-type Attempt = { key: string; payload: Record<string,unknown> };
+type Attempt = { userId?: string | null; key: string; payload: Record<string,unknown> };
 function previousAttempt(): Attempt | null { try { return JSON.parse(sessionStorage.getItem(pendingKey) ?? 'null'); } catch { return null; } }
 export function Checkout({ items, total, ready, onSuccess, refresh }: Props) {
+  const { session, loading: sessionLoading, openAccount } = useCustomer();
   const [attempt, setAttempt] = useState<Attempt|null>(previousAttempt);
   const [busy, setBusy] = useState(false); const lock = useRef(false);
   const [error, setError] = useState(''); const [receipt, setReceipt] = useState<{number:number;subtotal_cents:number}|null>(null);
   const [method, setMethod] = useState('pickup');
   async function send(value: Attempt) {
     if (lock.current || !supabase) return;
+    if (sessionLoading) return;
+    if ((value.userId ?? null) !== (session?.user.id ?? null)) { setError('Entre na mesma conta usada ao iniciar este pedido para recuperar o envio.'); return; }
+    const client = value.userId ? customerAuth : supabase;
+    if (!client) return;
     lock.current=true; setBusy(true); setError('');
     try {
-      const { data, error: failure } = await supabase.rpc('submit_order', { p_request_key:value.key,...value.payload });
+      const { data, error: failure } = await client.rpc('submit_order', { p_request_key:value.key,...value.payload });
       if (failure) {
         // Known server rejection rolls back the transaction; transport errors are uncertain.
         if (failure.code === 'P0001' || failure.code === '22023' || failure.code === '22P02') { sessionStorage.removeItem(pendingKey);setAttempt(null); }
@@ -29,9 +35,9 @@ export function Checkout({ items, total, ready, onSuccess, refresh }: Props) {
     finally { lock.current=false;setBusy(false); }
   }
   function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!ready || busy || attempt) return;
+    event.preventDefault(); if (!ready || busy || attempt || sessionLoading) return;
     const form = new FormData(event.currentTarget); const val=(key:string)=>String(form.get(key) ?? '').trim();
-    const value = { key:crypto.randomUUID(),payload:{ p_customer:{name:val('name'),email:val('email'),phone:val('phone')},p_delivery:{method,address:method==='delivery'?{cep:val('cep').replace(/\D/g,''),street:val('street'),number:val('number'),complement:val('complement'),district:val('district'),city:val('city'),state:val('state')}:null},p_items:items.map(i=>({variant_id:i.variantId,quantity:i.quantity})),p_expected_subtotal:total,p_notes:val('notes') } };
+    const value = { userId:session?.user.id ?? null,key:crypto.randomUUID(),payload:{ p_customer:{name:val('name'),email:val('email'),phone:val('phone')},p_delivery:{method,address:method==='delivery'?{cep:val('cep').replace(/\D/g,''),street:val('street'),number:val('number'),complement:val('complement'),district:val('district'),city:val('city'),state:val('state')}:null},p_items:items.map(i=>({variant_id:i.variantId,quantity:i.quantity})),p_expected_subtotal:total,p_notes:val('notes') } };
     // Persist the exact request before network I/O so reload/retry cannot duplicate it.
     try { sessionStorage.setItem(pendingKey,JSON.stringify(value)); } catch { setError('Permita o armazenamento desta sessão para enviar o pedido com segurança.');return; }
     setAttempt(value); void send(value);
@@ -41,9 +47,9 @@ export function Checkout({ items, total, ready, onSuccess, refresh }: Props) {
     {attempt && <section className="panel" role="status"><h2>{busy?'Enviando pedido…':'Confira o envio pendente'}</h2><p>Existe uma tentativa de envio nesta sessão. Recuperar o resultado usa os mesmos dados e evita duplicação, mesmo se você recarregou a página.</p><Button disabled={busy} onClick={()=>void send(attempt)}>Verificar envio / tentar novamente</Button></section>}
     {error && <div className="panel" role="alert"><p>{error}</p>{!attempt && <Button className="secondary" onClick={refresh}>Atualizar valores e estoque</Button>}</div>}
     <fieldset disabled={busy || !!attempt} className="checkout-fieldset">
-      <section className="panel"><h2>1. Seus dados</h2><div className="field-grid">
-        <label>Nome completo<input name="name" autoComplete="name" required minLength={2} maxLength={160}/></label>
-        <label>E-mail<input name="email" type="email" autoComplete="email" required maxLength={254}/></label>
+      <section className="panel"><h2>1. Seus dados</h2>{!session && <p>Para acompanhar o pedido na sua conta, <button type="button" className="text-link" onClick={openAccount}>entre antes de enviar</button>.</p>}<div className="field-grid">
+        <label>Nome completo<input name="name" defaultValue={session?.user.user_metadata?.full_name ?? ''} autoComplete="name" required minLength={2} maxLength={160}/></label>
+        <label>E-mail<input name="email" defaultValue={session?.user.email ?? ''} type="email" autoComplete="email" required maxLength={254}/></label>
         <label>Telefone / WhatsApp<input name="phone" type="tel" autoComplete="tel" required pattern="[+0-9 ()-]{10,22}" maxLength={22} placeholder="(16) 99999-9999"/></label>
       </div></section>
       <section className="panel"><h2>2. Como receber</h2><label>Modalidade<select value={method} onChange={e=>setMethod(e.target.value)}><option value="pickup">Retirada combinada com a loja</option><option value="delivery">Entrega a combinar</option></select></label>
